@@ -21,7 +21,6 @@ class AVParameters(typing.TypedDict, total=False):
     function: typing.Literal[
         "BALANCE_SHEET",
         "FEDERAL_FUNDS_RATE",
-        "FEDERAL_FUNDS_RATE&maturity=1month"
         "TIME_SERIES_INTRADAY",
         "TIME_SERIES_DAILY",
         "TIME_SERIES_DAILY_ADJUSTED",
@@ -33,10 +32,14 @@ class AVParameters(typing.TypedDict, total=False):
         "SYMBOL_SEARCH",
         "MARKET_STATUS",
         "CPI",
-        "UNEMPLOYMENT"
+        "UNEMPLOYMENT",
+        "TREASURY_YIELD"
     ]
     interval: typing.Literal[
         "1min", "5min", "15min", "30min", "60min", "daily", "weekly", "monthly"
+    ]
+    maturity: typing.Literal[
+        "1month", "3month", "2year", "5year", "7year", "10year"
     ]
     month: str
     symbol: str
@@ -139,10 +142,11 @@ def prices(apikey: str, ticker: str, window: int = 52) -> pd.DataFrame:
             "low",
         ],
     )
+    prices.rename(columns={"adj_close": f"{ticker}_adj_close"}, inplace=True)
 
     if any(
         column not in prices.columns
-        for column in ["date", "adj_open", "adj_close", "adj_high", "adj_low"]
+        for column in ["date", "adj_open", f"{ticker}_adj_close", "adj_high", "adj_low"]
     ):
         raise ValueError("prices dataframe missing expected columns")
     return prices
@@ -164,8 +168,9 @@ def federal_funds_rates(apikey: str, window: int = 52 * 8) -> pd.DataFrame:
     params: AVParameters = {
         "apikey": apikey,
         "datatype": "json",
-        "function": "FEDERAL_FUNDS_RATE",
+        "function": "TREASURY_YIELD",
         "interval": "weekly",
+        "maturity": "3month"
     }
 
     json_data = get_alphavantage(params = params)
@@ -179,6 +184,40 @@ def federal_funds_rates(apikey: str, window: int = 52 * 8) -> pd.DataFrame:
     rates["fed_funds"] = (1 + rates["fed_funds"]) ** (1 /52) - 1
 
     if any(column not in rates.columns for column in ["date", "fed_funds"]):
+        raise ValueError("rates dataframe missing expected columns")
+    return rates
+
+def treasury(apikey: str, window: int = 52 * 8) -> pd.DataFrame:
+    """
+    Gets the historical 3-month treasury yield from the AlphaVantage API.
+
+    Parameters:
+        apikey (str): An AlphaVantage API key
+        window (int): The number of months to get the federal funds rate for
+
+    Returns:
+        rates (pd.DataFrame): The historical 3-month tresury yield
+    """
+    if window < 0:
+        raise ValueError("window size must be positive")
+        
+    params: AVParameters = {
+        "apikey": apikey,
+        "datatype": "json",
+        "function": "FEDERAL_FUNDS_RATE",
+        "interval": "weekly",
+    }
+
+    json_data = get_alphavantage(params = params)
+    windowed_time_series = json_data["data"][:window][::-1]
+    
+    rates = pd.DataFrame(windowed_time_series)
+    rates["date"] = pd.to_datetime(rates["date"])
+    rates.rename(columns={"value": "3monhth_treasury_yield"}, inplace=True)
+    rates["3monhth_treasury_yield"] = pd.to_numeric(rates["3monhth_treasury_yield"])
+    rates["3monhth_treasury_yield"] = rates["3monhth_treasury_yield"] / 100
+
+    if any(column not in rates.columns for column in ["date", "3monhth_treasury_yield"]):
         raise ValueError("rates dataframe missing expected columns")
     return rates
 
@@ -257,19 +296,41 @@ if __name__ == "__main__":
     years = 8
     
     #Monthly S&P 500 (SPY)
-    spy = prices(alphavantage_api_key, "SPY", 52 * years)[["date", "adj_close"]]
-    spy.rename(columns={"adj_close": "spy_price"}, inplace=True)
+    spy = prices(alphavantage_api_key, "SPY", 52 * years)[["date", "SPY_adj_close"]]
     print(spy)
     
     #REIT ETF (SCHH)
-    schh = prices(alphavantage_api_key, "SCHH", 52 * years)[["date", "adj_close"]]
-    schh.rename(columns={"adj_close": "schh_price"}, inplace=True)
-    print(schh)
+    reit_tickers = ["EQR", "ESS", "AVB", "INVH"]
+    
+    reit_prices = {
+        ticker: prices(alphavantage_api_key, ticker, 52 * years)[["date", f"{ticker}_adj_close"]]
+        for ticker in reit_tickers
+    }
+    
+    #get 1week/1month/3month price
+    for key, value in reit_prices.items():
+        value[f"{key}_adj_close_1week"] = value[f"{key}_adj_close"].shift(-1)
+        value[f"{key}_adj_close_1month"] = value[f"{key}_adj_close"].shift(-4)
+        value[f"{key}_adj_close_3month"] = value[f"{key}_adj_close"].shift(-12)
+    
+    #merge
+    df_reit = None
+    for key, value in reit_prices.items():
+        if df_reit is None:
+            df_reit = value
+        else:
+            df_reit = df_reit.merge(value, on= "date", how = "outer")
+    print(df_reit)
     
     #1-month Fed Funds Rate
     fed_funds = federal_funds_rates(alphavantage_api_key, 52 * years)
-    fed_funds["date"] = fed_funds["date"] + pd.Timedelta(days = 2)
     print(fed_funds)
+    
+    #3-month treasury yield
+    treasury = treasury(alphavantage_api_key, 52 * years)
+    treasury["date"] = treasury["date"] + pd.Timedelta(days = 2)
+    
+    print(treasury)
     
     #Unemployment rate
     unemployment = unemployment(alphavantage_api_key, 12 * years)
@@ -278,7 +339,7 @@ if __name__ == "__main__":
     unemployment.index = unemployment.index + pd.Timedelta(days = 5)
     print(unemployment)
     
-    #Inflation
+    #CPI
     cpi = cpi(alphavantage_api_key)
     cpi.set_index("date", inplace=True)
     cpi = cpi.resample("W").ffill()
@@ -286,11 +347,15 @@ if __name__ == "__main__":
     print(cpi)
     
     #merge
-    df1 = pd.merge(spy, schh,
+    df1 = pd.merge(spy, df_reit,
                      on = ["date"],
                      how = "left")
     
     df2 = pd.merge(unemployment, fed_funds,
+                     on = ["date"],
+                     how = "left")
+    
+    df2 = pd.merge(df2, treasury,
                      on = ["date"],
                      how = "left")
     print(df2)
@@ -304,6 +369,7 @@ if __name__ == "__main__":
                      on = ["date"],
                      how = "left")
     df.loc[df["date"].dt.year == 2024, "cpi"] = df.loc[df["date"].dt.year == 2024, "cpi"].ffill()
+    df.dropna(inplace = True)
     print(df)
     
     # Read the Redfin data into a DataFrame
@@ -327,3 +393,4 @@ if __name__ == "__main__":
     df_redfin["period_begin"] = pd.to_datetime(df_redfin["period_begin"])
     
     
+
