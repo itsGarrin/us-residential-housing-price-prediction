@@ -4,14 +4,10 @@
 import os
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import requests
 import typing
 import json
 import datetime
-import yfinance as yf
-import statsmodels.api as sm
-import itertools
 
 class AVParameters(typing.TypedDict, total=False):
     """
@@ -36,7 +32,7 @@ class AVParameters(typing.TypedDict, total=False):
         "GLOBAL_QUOTE",
         "SYMBOL_SEARCH",
         "MARKET_STATUS",
-        "INFLATION",
+        "CPI",
         "UNEMPLOYMENT"
     ]
     interval: typing.Literal[
@@ -89,7 +85,7 @@ def get_alphavantage(params: AVParameters, use_cache: bool = True) -> typing.Any
         json.dump(data, f)
     return data
 
-def prices(apikey: str, ticker: str, window: int = 12) -> pd.DataFrame:
+def prices(apikey: str, ticker: str, window: int = 52) -> pd.DataFrame:
     """
     Gets historical prices for a specified ticker from the AlphaVantage API.
 
@@ -107,12 +103,12 @@ def prices(apikey: str, ticker: str, window: int = 12) -> pd.DataFrame:
     params: AVParameters = {
         "apikey": apikey,
         "datatype": "json",
-        "function": "TIME_SERIES_MONTHLY_ADJUSTED",
+        "function": "TIME_SERIES_WEEKLY_ADJUSTED",
         "symbol": ticker,
     }
 
     json_data = get_alphavantage(params = params)
-    full_time_series = list(json_data["Monthly Adjusted Time Series"].items())
+    full_time_series = list(json_data["Weekly Adjusted Time Series"].items())
     windowed_time_series = full_time_series[:window][::-1]
     prices_list = [
         [
@@ -151,7 +147,7 @@ def prices(apikey: str, ticker: str, window: int = 12) -> pd.DataFrame:
         raise ValueError("prices dataframe missing expected columns")
     return prices
 
-def federal_funds_rates(apikey: str, window: int = 12 * 8) -> pd.DataFrame:
+def federal_funds_rates(apikey: str, window: int = 52 * 8) -> pd.DataFrame:
     """
     Gets the historical federal funds rates from the AlphaVantage API.
 
@@ -169,7 +165,7 @@ def federal_funds_rates(apikey: str, window: int = 12 * 8) -> pd.DataFrame:
         "apikey": apikey,
         "datatype": "json",
         "function": "FEDERAL_FUNDS_RATE",
-        "interval": "monthly",
+        "interval": "weekly",
     }
 
     json_data = get_alphavantage(params = params)
@@ -180,7 +176,7 @@ def federal_funds_rates(apikey: str, window: int = 12 * 8) -> pd.DataFrame:
     rates.rename(columns={"value": "fed_funds"}, inplace=True)
     rates["fed_funds"] = pd.to_numeric(rates["fed_funds"])
     rates["fed_funds"] = rates["fed_funds"] / 100
-    rates["fed_funds"] = (1 + rates["fed_funds"]) ** (1 /12) - 1
+    rates["fed_funds"] = (1 + rates["fed_funds"]) ** (1 /52) - 1
 
     if any(column not in rates.columns for column in ["date", "fed_funds"]):
         raise ValueError("rates dataframe missing expected columns")
@@ -219,16 +215,16 @@ def unemployment(apikey: str, window: int = 12 * 8) -> pd.DataFrame:
         raise ValueError("rates dataframe missing expected columns")
     return rates
 
-def inflation(apikey: str, window: int = 8) -> pd.DataFrame:
+def cpi(apikey: str, window: int = 12 * 8) -> pd.DataFrame:
     """
-    Gets the historical inflation rates from the AlphaVantage API.
+    Gets the historical CPI from the AlphaVantage API.
 
     Parameters:
         apikey (str): An AlphaVantage API key
         window (int): The number of years to get the inflation rates for
 
     Returns:
-        rates (pd.DataFrame): The historical inflation rates
+        rates (pd.DataFrame): The historical CPI
     """
     if window < 0:
         raise ValueError("window size must be positive")
@@ -236,7 +232,7 @@ def inflation(apikey: str, window: int = 8) -> pd.DataFrame:
     params: AVParameters = {
         "apikey": apikey,
         "datatype": "json",
-        "function": "INFLATION",
+        "function": "CPI",
     }
 
     json_data = get_alphavantage(params = params)
@@ -244,11 +240,11 @@ def inflation(apikey: str, window: int = 8) -> pd.DataFrame:
     
     rates = pd.DataFrame(windowed_time_series)
     rates["date"] = pd.to_datetime(rates["date"])
-    rates.rename(columns={"value": "inflation"}, inplace=True)
-    rates["inflation"] = pd.to_numeric(rates["inflation"])
-    rates["inflation"] = rates["inflation"] / 100
+    rates.rename(columns={"value": "cpi"}, inplace=True)
+    rates["cpi"] = pd.to_numeric(rates["cpi"])
+    rates["cpi"] = rates["cpi"] / 100
 
-    if any(column not in rates.columns for column in ["date", "inflation"]):
+    if any(column not in rates.columns for column in ["date", "cpi"]):
         raise ValueError("rates dataframe missing expected columns")
     return rates
 
@@ -261,28 +257,33 @@ if __name__ == "__main__":
     years = 8
     
     #Monthly S&P 500 (SPY)
-    spy = prices(alphavantage_api_key, "SPY", 12 * years)[["date", "adj_close"]]
+    spy = prices(alphavantage_api_key, "SPY", 52 * years)[["date", "adj_close"]]
     spy.rename(columns={"adj_close": "spy_price"}, inplace=True)
     print(spy)
     
     #REIT ETF (SCHH)
-    schh = prices(alphavantage_api_key, "SCHH", 12 * years)[["date", "adj_close"]]
+    schh = prices(alphavantage_api_key, "SCHH", 52 * years)[["date", "adj_close"]]
     schh.rename(columns={"adj_close": "schh_price"}, inplace=True)
     print(schh)
     
     #1-month Fed Funds Rate
-    fed_funds = federal_funds_rates(alphavantage_api_key, 12 * years)
+    fed_funds = federal_funds_rates(alphavantage_api_key, 52 * years)
+    fed_funds["date"] = fed_funds["date"] + pd.Timedelta(days = 2)
     print(fed_funds)
     
     #Unemployment rate
     unemployment = unemployment(alphavantage_api_key, 12 * years)
+    unemployment.set_index("date", inplace=True)
+    unemployment = unemployment.resample("W").ffill()
+    unemployment.index = unemployment.index + pd.Timedelta(days = 5)
     print(unemployment)
     
     #Inflation
-    inflation = inflation(alphavantage_api_key)
-    inflation.set_index("date", inplace=True)
-    inflation = inflation.resample("ME").ffill()
-    print(inflation)
+    cpi = cpi(alphavantage_api_key)
+    cpi.set_index("date", inplace=True)
+    cpi = cpi.resample("W").ffill()
+    cpi.index = cpi.index + pd.Timedelta(days = 5)
+    print(cpi)
     
     #merge
     df1 = pd.merge(spy, schh,
@@ -292,32 +293,29 @@ if __name__ == "__main__":
     df2 = pd.merge(unemployment, fed_funds,
                      on = ["date"],
                      how = "left")
+    print(df2)
     
     df1["date"] = pd.to_datetime(df1["date"])
     df2["date"] = pd.to_datetime(df2["date"])
 
-    df = pd.merge_asof(df1.sort_values("date"), df2.sort_values("date"), on="date")
-    df["date"] = df["date"] + pd.offsets.MonthEnd(0)
-    df = pd.merge(df, inflation,
+    df = pd.merge(df1.sort_values("date"), df2.sort_values("date"), on="date")
+    
+    df = pd.merge(df, cpi,
                      on = ["date"],
                      how = "left")
-    df.loc[df["date"].dt.year == 2023, "inflation"] = df.loc[df["date"].dt.year == 2023, "inflation"].ffill()
+    df.loc[df["date"].dt.year == 2024, "cpi"] = df.loc[df["date"].dt.year == 2024, "cpi"].ffill()
     print(df)
     
     # Read the Redfin data into a DataFrame
-    file_path_redfin = "../data/weekly_housing_market_data_most_recent.tsv"
+    file_path_redfin = "..data/weekly_housing_market_data_most_recent.tsv"
     df_redfin = pd.read_csv(file_path_redfin, sep="\t")
     
     #Extract the required features
-    df_redfin = df_redfin[["period_begin", "period_end", "region_type",
-       "region_name", "duration", "adjusted_average_homes_sold",
-       "adjusted_average_homes_sold_yoy", "median_sale_price",
-       "median_sale_price_yoy", "age_of_inventory",
-       "age_of_inventory_yoy"]]
+    df_redfin.drop(columns=["region_type_id", "region_id"], inplace=True)
 
     #extract weekly data by county
     df_redfin = df_redfin[df_redfin["region_type"] == "county"]
-    df_redfin = df_redfin[df_redfin["duration"] == "4 weeks"]
+    df_redfin = df_redfin[df_redfin["duration"] == "1 weeks"]
     df_redfin.drop(columns=["region_type", "duration"], inplace=True)
     df_redfin.dropna(inplace = True)
 
@@ -330,6 +328,3 @@ if __name__ == "__main__":
     df_redfin["month"] = df_redfin["period_begin"].dt.to_period("M")
     print(df_redfin)
     
-    
-    
-
