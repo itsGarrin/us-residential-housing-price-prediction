@@ -307,7 +307,7 @@ if __name__ == "__main__":
     print(df)
     
     # Read the Redfin data into a DataFrame
-    file_path_redfin = "..data/weekly_housing_market_data_most_recent.tsv"
+    file_path_redfin = "/Users/jianihe/Desktop/weekly_housing_market_data_most_recent.tsv"
     df_redfin = pd.read_csv(file_path_redfin, sep="\t")
     
     #Extract the required features
@@ -325,6 +325,5 @@ if __name__ == "__main__":
 
     #define month
     df_redfin["period_begin"] = pd.to_datetime(df_redfin["period_begin"])
-    df_redfin["month"] = df_redfin["period_begin"].dt.to_period("M")
-    print(df_redfin)
+    
     
