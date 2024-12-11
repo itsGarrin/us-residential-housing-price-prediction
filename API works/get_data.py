@@ -16,6 +16,7 @@ class AVParameters(typing.TypedDict, total=False):
 
     adjusted: typing.Literal["true", "false"]
     apikey: typing.Required[str]
+    outputsize: typing.Literal["compact", "full"]
     datatype: typing.Literal["csv", "json"]
     extended_hours: typing.Literal["true", "false"]
     function: typing.Literal[
@@ -88,7 +89,7 @@ def get_alphavantage(params: AVParameters, use_cache: bool = True) -> typing.Any
         json.dump(data, f)
     return data
 
-def prices(apikey: str, ticker: str, window: int = 52) -> pd.DataFrame:
+def prices_daily(apikey: str, ticker: str, window: int = 252) -> pd.DataFrame:
     """
     Gets historical prices for a specified ticker from the AlphaVantage API.
 
@@ -106,12 +107,13 @@ def prices(apikey: str, ticker: str, window: int = 52) -> pd.DataFrame:
     params: AVParameters = {
         "apikey": apikey,
         "datatype": "json",
-        "function": "TIME_SERIES_WEEKLY_ADJUSTED",
+        "outputsize": "full",
+        "function": "TIME_SERIES_DAILY_ADJUSTED",
         "symbol": ticker,
     }
 
     json_data = get_alphavantage(params = params)
-    full_time_series = list(json_data["Weekly Adjusted Time Series"].items())
+    full_time_series = list(json_data["Time Series (Daily)"].items())
     windowed_time_series = full_time_series[:window][::-1]
     prices_list = [
         [
@@ -296,22 +298,45 @@ if __name__ == "__main__":
     years = 8
     
     #Monthly S&P 500 (SPY)
-    spy = prices(alphavantage_api_key, "SPY", 52 * years)[["date", "SPY_adj_close"]]
+    spy = prices_daily(alphavantage_api_key, "SPY", 252 * years)[["date", "SPY_adj_close"]]
+    spy["SPY_adj_close_1day"] = spy["SPY_adj_close"].shift(-1)
+    spy["SPY_adj_close_1week"] = spy["SPY_adj_close"].shift(-5)
+    spy["SPY_adj_close_1month"] = spy["SPY_adj_close"].shift(-20)
+    spy["SPY_adj_close_3month"] = spy["SPY_adj_close"].shift(-60)
+    spy["SPY_return_1day"] = (spy["SPY_adj_close_1day"] - spy["SPY_adj_close"]) / spy["SPY_adj_close"]
+    spy["SPY_return_1week"] = (spy["SPY_adj_close_1week"] - spy["SPY_adj_close"]) / spy["SPY_adj_close"]
+    spy["SPY_return_1month"] = (spy["SPY_adj_close_1month"] - spy["SPY_adj_close"]) / spy["SPY_adj_close"]
+    spy["SPY_return_3month"] = (spy["SPY_adj_close_3month"] - spy["SPY_adj_close"]) / spy["SPY_adj_close"]
+    spy = spy.drop(columns = ["SPY_adj_close_1week", "SPY_adj_close_1month", "SPY_adj_close_1day", "SPY_adj_close_3month"])
+    spy.dropna(inplace = True)
     print(spy)
     
     #REIT ETF (SCHH)
     reit_tickers = ["EQR", "ESS", "AVB", "INVH"]
     
     reit_prices = {
-        ticker: prices(alphavantage_api_key, ticker, 52 * years)[["date", f"{ticker}_adj_close"]]
+        ticker: prices_daily(alphavantage_api_key, ticker, 252 * years)[["date", f"{ticker}_adj_close"]]
         for ticker in reit_tickers
     }
     
     #get 1week/1month/3month price
     for key, value in reit_prices.items():
-        value[f"{key}_adj_close_1week"] = value[f"{key}_adj_close"].shift(-1)
-        value[f"{key}_adj_close_1month"] = value[f"{key}_adj_close"].shift(-4)
-        value[f"{key}_adj_close_3month"] = value[f"{key}_adj_close"].shift(-12)
+        value[f"{key}_adj_close_1day"] = value[f"{key}_adj_close"].shift(-1)
+        value[f"{key}_return_1day"] = (value[f"{key}_adj_close_1day"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        value = value.drop(columns = [f"{key}_adj_close_1day"])
+        
+        value[f"{key}_adj_close_1week"] = value[f"{key}_adj_close"].shift(-5)
+        value[f"{key}_return_1week"] = (value[f"{key}_adj_close_1week"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        value = value.drop(columns = [f"{key}_adj_close_1week"])
+        
+        value[f"{key}_adj_close_1month"] = value[f"{key}_adj_close"].shift(-20)
+        value[f"{key}_return_1month"] = (value[f"{key}_adj_close_1month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        value = value.drop(columns = [f"{key}_adj_close_1month"])
+        
+        value[f"{key}_adj_close_3month"] = value[f"{key}_adj_close"].shift(-60)
+        value[f"{key}_return_3month"] = (value[f"{key}_adj_close_3month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        value = value.drop(columns = [f"{key}_adj_close_3month"])
+    print(reit_prices)
     
     #merge
     df_reit = None
