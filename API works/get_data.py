@@ -307,6 +307,7 @@ if __name__ == "__main__":
     spy["SPY_return_1week"] = (spy["SPY_adj_close_1week"] - spy["SPY_adj_close"]) / spy["SPY_adj_close"]
     spy["SPY_return_1month"] = (spy["SPY_adj_close_1month"] - spy["SPY_adj_close"]) / spy["SPY_adj_close"]
     spy["SPY_return_3month"] = (spy["SPY_adj_close_3month"] - spy["SPY_adj_close"]) / spy["SPY_adj_close"]
+    spy = spy.drop(columns = ["SPY_adj_close_1week", "SPY_adj_close_1month", "SPY_adj_close_1day", "SPY_adj_close_3month"])
     spy.dropna(inplace = True)
     print(spy)
     
@@ -331,6 +332,19 @@ if __name__ == "__main__":
         
         value[f"{key}_adj_close_3month"] = value[f"{key}_adj_close"].shift(-60)
         value[f"{key}_return_3month"] = (value[f"{key}_adj_close_3month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        value = value.drop(columns = [f"{key}_adj_close_1day"])
+        
+        value[f"{key}_adj_close_1week"] = value[f"{key}_adj_close"].shift(-5)
+        value[f"{key}_return_1week"] = (value[f"{key}_adj_close_1week"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        value = value.drop(columns = [f"{key}_adj_close_1week"])
+        
+        value[f"{key}_adj_close_1month"] = value[f"{key}_adj_close"].shift(-20)
+        value[f"{key}_return_1month"] = (value[f"{key}_adj_close_1month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        value = value.drop(columns = [f"{key}_adj_close_1month"])
+        
+        value[f"{key}_adj_close_3month"] = value[f"{key}_adj_close"].shift(-60)
+        value[f"{key}_return_3month"] = (value[f"{key}_adj_close_3month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        value = value.drop(columns = [f"{key}_adj_close_3month"])
     print(reit_prices)
     
     #merge
