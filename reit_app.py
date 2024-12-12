@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import plotly.express as px
 
 
 # Load data
@@ -15,6 +16,7 @@ def load_data(file_path):
 def main():
     st.title("REIT Price Prediction Dashboard")
     st.sidebar.header("Options")
+    st.sidebar.info("Select the REIT(s) to analyze and compare their actual vs. predicted prices.")
 
     # File upload or default file
     data = load_data("data/REIT_predictions.csv")
@@ -38,9 +40,8 @@ def main():
     filtered_data = data[
         (data["date"] >= pd.to_datetime(date_range[0])) & (data["date"] <= pd.to_datetime(date_range[1]))]
 
-    # Show filtered data
-    st.subheader("Filtered Data")
-    st.write(filtered_data.head(10))
+    # Display data summary
+    display_data_summary(filtered_data, selected_reit)
 
     # Display REIT plots for selected REITs
     for reit in selected_reit:
@@ -50,6 +51,7 @@ def main():
 
         st.subheader(f"{reit} Actual vs Predicted Prices")
         plot_actual_vs_predicted(filtered_data, adj_close_col, adj_close_1week_col, pred_col)
+        plot_residual_distribution(filtered_data, adj_close_col, pred_col)
 
         # Model Evaluation Metrics
         mae, mse, rmse, r2 = calculate_metrics(filtered_data, adj_close_col, pred_col)
@@ -59,6 +61,13 @@ def main():
         st.write(f"RMSE: {rmse:.2f}")
         st.write(f"R²: {r2:.2f}")
 
+    avg_mae, avg_mse, avg_rmse, avg_r2 = calculate_aggregate_metrics(filtered_data, selected_reit)
+    st.write("### Aggregate Metrics Across Selected REITs")
+    st.write(f"MAE: {avg_mae:.2f}, MSE: {avg_mse:.2f}, RMSE: {avg_rmse:.2f}, R²: {avg_r2:.2f}")
+
+    with st.expander("Show Filtered Data"):
+        st.write(filtered_data.head(10))
+
     # Download button for predictions
     st.sidebar.subheader("Download Predictions")
     if st.sidebar.button("Download Predictions as CSV"):
@@ -66,18 +75,44 @@ def main():
         predictions_data.to_csv("predictions.csv", index=False)
         st.sidebar.success("Predictions CSV ready to download!")
 
+# Data Summary Section
+def display_data_summary(data, selected_reit):
+    st.write("### Dataset Summary")
+    st.write(f"**Total Rows:** {data.shape[0]}")
+    st.write(f"**Total Columns:** {data.shape[1]}")
+    st.write(f"**Selected REITs:** {', '.join(selected_reit)}")
+    st.write(f"**Date Range:** {data['date'].min().strftime('%Y-%m-%d')} to {data['date'].max().strftime('%Y-%m-%d')}")
+    st.write(" ")
 
-# Function to plot actual vs predicted prices
-def plot_actual_vs_predicted(data, adj_close_col, adj_close_3month_col, pred_col):
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(data["date"], data[adj_close_col], label="Actual (Current)", color="blue")
-    ax.plot(data["date"], data[adj_close_3month_col], label="Actual (3-Month Ahead)", color="green")
-    ax.plot(data["date"], data[pred_col], label="Predicted (3-Month)", color="orange", linestyle="--")
-    ax.set_title(f"{adj_close_col} Price Prediction")
-    ax.set_xlabel("Date")
-    ax.set_ylabel("Price")
-    ax.legend()
-    st.pyplot(fig)
+
+def plot_actual_vs_predicted(data, adj_close_col, adj_close_1week_col, pred_col):
+    melted_data = data.melt(
+        id_vars="date",
+        value_vars=[adj_close_1week_col, pred_col],
+        var_name="Price Type",
+        value_name="Price"
+    )
+    fig = px.line(
+        melted_data,
+        x="date",
+        y="Price",
+        color="Price Type",
+        labels={"date": "Date", "Price": "Price ($)"},
+        title=f"Actual vs Predicted Prices ({adj_close_col})",
+    )
+    fig.update_traces(mode="lines+markers")
+    st.plotly_chart(fig)
+
+def plot_residual_distribution(data, actual_col, pred_col):
+    residuals = data[actual_col] - data[pred_col]
+    fig = px.histogram(
+        residuals,
+        nbins=50,
+        title="Residual Distribution",
+        labels={"value": "Residuals"},
+    )
+    fig.update_layout(bargap=0.1)
+    st.plotly_chart(fig)
 
 
 # Function to calculate model evaluation metrics
@@ -100,6 +135,24 @@ def calculate_metrics(data, actual_col, pred_col):
     r2 = 1 - (ss_residual / ss_total)
 
     return mae, mse, rmse, r2
+
+def calculate_aggregate_metrics(data, selected_reit):
+    aggregate_metrics = {"MAE": [], "MSE": [], "RMSE": [], "R²": []}
+    for reit in selected_reit:
+        adj_close_col = f"{reit}_adj_close"
+        pred_col = f"{reit}_pred"
+        mae, mse, rmse, r2 = calculate_metrics(data, adj_close_col, pred_col)
+        aggregate_metrics["MAE"].append(mae)
+        aggregate_metrics["MSE"].append(mse)
+        aggregate_metrics["RMSE"].append(rmse)
+        aggregate_metrics["R²"].append(r2)
+
+    # Calculate mean metrics
+    avg_mae = np.mean(aggregate_metrics["MAE"])
+    avg_mse = np.mean(aggregate_metrics["MSE"])
+    avg_rmse = np.mean(aggregate_metrics["RMSE"])
+    avg_r2 = np.mean(aggregate_metrics["R²"])
+    return avg_mae, avg_mse, avg_rmse, avg_r2
 
 
 if __name__ == "__main__":
