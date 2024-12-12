@@ -66,17 +66,17 @@ def data_overview_page():
     st.dataframe(filtered_data[numeric_columns].describe().transpose())
 
     # Visualizations Section
-    st.subheader("Visualizations")
+    st.header("Visualizations")
 
     # 1. Time-Series Line Chart
-    st.markdown("### Time-Series Trends")
+    st.markdown("#### Time-Series Trends")
     time_series_column = st.selectbox("Select Column to Plot Over Time", numeric_columns)
     if time_series_column:
         fig = px.line(filtered_data, x="date", y=time_series_column, title=f"Trend of {time_series_column} Over Time")
         st.plotly_chart(fig)
 
     # 2. Interactive Correlation Heatmap with Feature Selection
-    st.markdown("### Correlation Heatmap")
+    st.markdown("#### Correlation Heatmap")
     if len(numeric_columns) > 1:
         selected_features = st.multiselect(
             "Select Features for Correlation Matrix:",
@@ -111,7 +111,7 @@ def data_overview_page():
             st.warning("Please select at least two features to display the correlation heatmap.")
 
     # 3. Bar Chart by State
-    st.markdown("### Aggregated Metrics by State")
+    st.markdown("#### Aggregated Metrics by State")
     bar_chart_metric = st.selectbox("Select Metric for Bar Chart", numeric_columns)
     if bar_chart_metric:
         state_agg = filtered_data.groupby("State")[bar_chart_metric].mean().reset_index()
@@ -119,7 +119,7 @@ def data_overview_page():
         st.plotly_chart(fig)
 
     # 4. Scatter Plot
-    st.markdown("### Scatter Plot")
+    st.markdown("#### Scatter Plot")
     x_col = st.selectbox("X-axis Column", numeric_columns)
     y_col = st.selectbox("Y-axis Column", numeric_columns, index=1)
     if x_col and y_col:
