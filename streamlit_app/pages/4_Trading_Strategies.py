@@ -80,7 +80,7 @@ def main():
     st.title("📈 Backtesting & Trading Strategies")
 
     # Load data
-    file_path = "../data/REIT_Predictions.csv"
+    file_path = "data/REIT_Predictions.csv"
     data = load_data(file_path)
 
     # Sidebar options
