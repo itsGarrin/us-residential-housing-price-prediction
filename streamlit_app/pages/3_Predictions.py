@@ -70,7 +70,7 @@ def main():
     )
 
     if not selected_reit:
-        st.warning("Please select at least one REIT.")
+        st.warning("Please select at least one REIT using the navigation on the left.")
         return
 
     # Filter data
