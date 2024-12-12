@@ -86,8 +86,8 @@ def main():
 
     # Sidebar options
     reit_choices = ["AVB", "EQR", "ESS", "INVH"]
-    selected_reit = st.sidebar.multiselect("Select REIT(s)", reit_choices, default=[])
-    date_range = st.sidebar.date_input(
+    selected_reit = st.multiselect("Select REIT(s)", reit_choices, default=[])
+    date_range = st.date_input(
         "Select date range",
         value=(data["date"].min(), data["date"].max()),
         min_value=data["date"].min(),
@@ -95,7 +95,7 @@ def main():
     )
 
     if not selected_reit:
-        st.warning("Please select at least one REIT using the navigation on the left.")
+        st.warning("Please select at least one REIT.")
         return
 
     # Filter data
