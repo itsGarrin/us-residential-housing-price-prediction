@@ -1,12 +1,14 @@
-import streamlit as st
-import pandas as pd
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import streamlit as st
+
 
 @st.cache_data
 def load_data(file_path):
     return pd.read_csv(file_path, parse_dates=['date'])
+
 
 def calculate_metrics(data, actual_col, pred_col):
     actual = data[actual_col]
@@ -28,6 +30,7 @@ def calculate_metrics(data, actual_col, pred_col):
 
     return mae, mse, rmse, r2
 
+
 def calculate_aggregate_metrics(data, selected_reit):
     aggregate_metrics = {"MAE": [], "RMSE": [], "R²": []}
     for reit in selected_reit:
@@ -43,6 +46,12 @@ def calculate_aggregate_metrics(data, selected_reit):
     avg_rmse = np.mean(aggregate_metrics["RMSE"])
     avg_r2 = np.mean(aggregate_metrics["R²"])
     return avg_mae, avg_rmse, avg_r2, aggregate_metrics
+
+
+def calculate_standard_deviation(data, actual_col):
+    """Calculate the standard deviation of actual prices."""
+    return np.std(data[actual_col])
+
 
 def main():
     st.title("Predictions & Metrics")
@@ -67,21 +76,30 @@ def main():
     # Filter data
     filtered_data = data[
         (data["date"] >= pd.to_datetime(date_range[0])) & (data["date"] <= pd.to_datetime(date_range[1]))
-    ]
+        ]
 
     st.subheader("Model Evaluation Metrics")
 
     # Initialize data for the metrics table and plots
     metrics_table = []
     scatter_plots = []
+    std_devs = []  # List to store standard deviations for visualization
 
     for reit in selected_reit:
         adj_close_col = f"{reit}_adj_close"
         pred_col = f"{reit}_pred"
+
+        # Calculate metrics
         mae, mse, rmse, r2 = calculate_metrics(filtered_data, adj_close_col, pred_col)
+        std_dev = calculate_standard_deviation(filtered_data, adj_close_col)
 
         # Append to metrics table
-        metrics_table.append({"REIT": reit, "MAE": mae, "MSE": mse, "RMSE": rmse, "R²": r2})
+        metrics_table.append({
+            "REIT": reit, "MAE": mae, "MSE": mse, "RMSE": rmse, "R²": r2, "SD (Actual Price)": std_dev
+        })
+
+        # Store SD for visualization
+        std_devs.append((reit, std_dev))
 
         # Create scatter plot for actual vs. predicted
         scatter_fig = px.scatter(
@@ -97,7 +115,9 @@ def main():
 
     # Display metrics in a table
     metrics_df = pd.DataFrame(metrics_table)
-    st.dataframe(metrics_df.style.format({"MAE": "{:.2f}", "MSE": "{:.2f}", "RMSE": "{:.2f}", "R²": "{:.2f}"}))
+    st.dataframe(metrics_df.style.format({
+        "MAE": "{:.2f}", "MSE": "{:.2f}", "RMSE": "{:.2f}", "R²": "{:.2f}", "SD (Actual Price)": "{:.2f}"
+    }))
 
     # Show scatter plots for each REIT
     st.subheader("Scatter Plots: Actual vs. Predicted Prices")
@@ -122,6 +142,16 @@ def main():
     )
     st.plotly_chart(agg_fig)
 
+    # Bar chart for standard deviations
+    st.subheader("Standard Deviation of Actual Prices")
+    std_dev_fig = px.bar(
+        x=[item[0] for item in std_devs],
+        y=[item[1] for item in std_devs],
+        labels={"x": "REIT", "y": "Standard Deviation ($)"},
+        title="Standard Deviation of Actual Prices for Selected REITs",
+    )
+    st.plotly_chart(std_dev_fig)
+
     st.write(f"**Aggregate Metrics:**")
     st.write(f"MAE: {avg_mae:.2f}, RMSE: {avg_rmse:.2f}, R²: {avg_r2:.2f}")
 
@@ -134,6 +164,7 @@ def main():
         file_name="predictions.csv",
         mime="text/csv"
     )
+
 
 if __name__ == "__main__":
     main()

@@ -311,32 +311,35 @@ def plot_loss(history):
     plt.grid()
     plt.show()
 
+
 features_weighted = [
     'adjusted_average_new_listings',
-       'adjusted_average_new_listings_yoy',
-       'average_pending_sales_listing_updates',
-       'average_pending_sales_listing_updates_yoy', 'off_market_in_two_weeks',
-       'off_market_in_two_weeks_yoy', 'adjusted_average_homes_sold',
-       'adjusted_average_homes_sold_yoy', 'median_new_listing_price',
-       'median_new_listing_price_yoy', 'median_sale_price',
-       'median_sale_price_yoy', 'median_days_to_close',
-       'median_days_to_close_yoy', 'median_new_listing_ppsf',
-       'median_new_listing_ppsf_yoy', 'active_listings', 'active_listings_yoy',
-       'median_days_on_market', 'median_days_on_market_yoy',
-       'percent_active_listings_with_price_drops',
-       'percent_active_listings_with_price_drops_yoy', 'age_of_inventory',
-       'age_of_inventory_yoy', 'months_of_supply', 'months_of_supply_yoy',
-       'median_pending_sqft', 'median_pending_sqft_yoy',
-       'average_sale_to_list_ratio', 'average_sale_to_list_ratio_yoy',
-       'median_sale_ppsf', 'median_sale_ppsf_yoy', 'ZORI',
-       'ZHVI'
+    'adjusted_average_new_listings_yoy',
+    'average_pending_sales_listing_updates',
+    'average_pending_sales_listing_updates_yoy', 'off_market_in_two_weeks',
+    'off_market_in_two_weeks_yoy', 'adjusted_average_homes_sold',
+    'adjusted_average_homes_sold_yoy', 'median_new_listing_price',
+    'median_new_listing_price_yoy', 'median_sale_price',
+    'median_sale_price_yoy', 'median_days_to_close',
+    'median_days_to_close_yoy', 'median_new_listing_ppsf',
+    'median_new_listing_ppsf_yoy', 'active_listings', 'active_listings_yoy',
+    'median_days_on_market', 'median_days_on_market_yoy',
+    'percent_active_listings_with_price_drops',
+    'percent_active_listings_with_price_drops_yoy', 'age_of_inventory',
+    'age_of_inventory_yoy', 'months_of_supply', 'months_of_supply_yoy',
+    'median_pending_sqft', 'median_pending_sqft_yoy',
+    'average_sale_to_list_ratio', 'average_sale_to_list_ratio_yoy',
+    'median_sale_ppsf', 'median_sale_ppsf_yoy', 'ZORI',
+    'ZHVI'
 ]
+
 
 # Function to calculate weighted mean
 def weighted_mean(group, value_col, weight_col):
     weighted_sum = (group[value_col] * group[weight_col]).sum()
     weight_sum = group[weight_col].sum()
     return weighted_sum / weight_sum if weight_sum != 0 else 0
+
 
 # Step 1: Aggregate features by weighted mean for selected columns
 def aggregate_by_weighted_mean(df, features, groupby):
@@ -351,6 +354,7 @@ def aggregate_by_weighted_mean(df, features, groupby):
     aggregated_data['active_listings'] = df.groupby(groupby)['active_listings'].sum().reset_index()['active_listings']
 
     return aggregated_data
+
 
 # Putting it all together
 def process_data(df, features_weighted, groupby=['date', 'State']):
