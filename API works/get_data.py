@@ -322,28 +322,28 @@ if __name__ == "__main__":
     #get 1week/1month/3month price
     for key, value in reit_prices.items():
         value[f"{key}_adj_close_1day"] = value[f"{key}_adj_close"].shift(-1)
-        value[f"{key}_return_1day"] = (value[f"{key}_adj_close_1day"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        #value[f"{key}_return_1day"] = (value[f"{key}_adj_close_1day"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
         
         value[f"{key}_adj_close_1week"] = value[f"{key}_adj_close"].shift(-5)
-        value[f"{key}_return_1week"] = (value[f"{key}_adj_close_1week"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        #value[f"{key}_return_1week"] = (value[f"{key}_adj_close_1week"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
         
         value[f"{key}_adj_close_1month"] = value[f"{key}_adj_close"].shift(-20)
-        value[f"{key}_return_1month"] = (value[f"{key}_adj_close_1month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        #value[f"{key}_return_1month"] = (value[f"{key}_adj_close_1month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
         
         value[f"{key}_adj_close_3month"] = value[f"{key}_adj_close"].shift(-60)
-        value[f"{key}_return_3month"] = (value[f"{key}_adj_close_3month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        #value[f"{key}_return_3month"] = (value[f"{key}_adj_close_3month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
         value = value.drop(columns = [f"{key}_adj_close_1day"])
         
         value[f"{key}_adj_close_1week"] = value[f"{key}_adj_close"].shift(-5)
-        value[f"{key}_return_1week"] = (value[f"{key}_adj_close_1week"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        #value[f"{key}_return_1week"] = (value[f"{key}_adj_close_1week"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
         value = value.drop(columns = [f"{key}_adj_close_1week"])
         
         value[f"{key}_adj_close_1month"] = value[f"{key}_adj_close"].shift(-20)
-        value[f"{key}_return_1month"] = (value[f"{key}_adj_close_1month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        #value[f"{key}_return_1month"] = (value[f"{key}_adj_close_1month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
         value = value.drop(columns = [f"{key}_adj_close_1month"])
         
         value[f"{key}_adj_close_3month"] = value[f"{key}_adj_close"].shift(-60)
-        value[f"{key}_return_3month"] = (value[f"{key}_adj_close_3month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
+        #value[f"{key}_return_3month"] = (value[f"{key}_adj_close_3month"] - value[f"{key}_adj_close"]) / value[f"{key}_adj_close"]
         value = value.drop(columns = [f"{key}_adj_close_3month"])
     print(reit_prices)
     
@@ -406,7 +406,7 @@ if __name__ == "__main__":
     df.dropna(inplace = True)
     print(df)
     
-    df.to_csv("/Users/jianihe/Desktop/us-residential-housing-return-prediction/data/av_data.csv")
+    df.to_csv("../data/av_data.csv")
     
 # =============================================================================
 #     # Read the Redfin data into a DataFrame
