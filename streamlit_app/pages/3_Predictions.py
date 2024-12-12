@@ -61,7 +61,7 @@ def main():
 
     # Sidebar options
     reit_choices = ["AVB", "EQR", "ESS", "INVH"]
-    selected_reit = st.sidebar.multiselect("Select REIT(s)", reit_choices, default=reit_choices)
+    selected_reit = st.sidebar.multiselect("Select REIT(s)", reit_choices, default=[])
     date_range = st.sidebar.date_input(
         "Select date range",
         value=(data["date"].min(), data["date"].max()),
