@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import seaborn as sns
 import streamlit as st
 
@@ -76,13 +77,40 @@ def data_overview_page():
         fig = px.line(filtered_data, x="date", y=time_series_column, title=f"Trend of {time_series_column} Over Time")
         st.plotly_chart(fig)
 
-    # 2. Correlation Heatmap
+    # 2. Interactive Correlation Heatmap with Feature Selection
     st.markdown("### Correlation Heatmap")
     if len(numeric_columns) > 1:
-        corr_matrix = filtered_data[numeric_columns].corr()
-        fig, ax = plt.subplots(figsize=(10, 8))
-        sns.heatmap(corr_matrix, annot=True, fmt=".2f", cmap="coolwarm", ax=ax)
-        st.pyplot(fig)
+        selected_features = st.multiselect(
+            "Select Features for Correlation Matrix:",
+            options=numeric_columns,
+            default=[],  # Default to all numeric columns
+            help="Select the numeric features to include in the correlation heatmap."
+        )
+
+        if len(selected_features) > 1:
+            corr_matrix = filtered_data[selected_features].corr()
+
+            # Create Plotly heatmap
+            fig = go.Figure(
+                data=go.Heatmap(
+                    z=corr_matrix.values,
+                    x=corr_matrix.columns,
+                    y=corr_matrix.columns,
+                    colorscale="Viridis",
+                    zmin=-1,
+                    zmax=1,
+                    colorbar=dict(title="Correlation")
+                )
+            )
+            fig.update_layout(
+                title="Interactive Correlation Heatmap",
+                xaxis_title="Features",
+                yaxis_title="Features",
+                xaxis=dict(tickangle=45)
+            )
+            st.plotly_chart(fig)
+        else:
+            st.warning("Please select at least two features to display the correlation heatmap.")
 
     # 3. Bar Chart by State
     st.markdown("### Aggregated Metrics by State")
