@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -80,7 +82,8 @@ def main():
     st.title("📈 Backtesting & Trading Strategies")
 
     # Load data
-    file_path = "data/REIT_Predictions.csv"
+    # Get the absolute path of the file
+    file_path = os.path.join(os.path.dirname(__file__), "data/REIT_Predictions.csv")
     data = load_data(file_path)
 
     # Sidebar options
