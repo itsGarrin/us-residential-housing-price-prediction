@@ -1,7 +1,5 @@
-import os
-
-import pandas as pd
 import numpy as np
+import pandas as pd
 import plotly.express as px
 import streamlit as st
 
@@ -48,6 +46,17 @@ def simulate_strategy(data, strategy, num_reits, investment):
 
     return data
 
+
+def calculate_beta(portfolio_returns, market_returns):
+    """
+    Calculate beta of the portfolio relative to the market.
+    Beta = Cov(Portfolio, Market) / Var(Market)
+    """
+    cov_matrix = np.cov(portfolio_returns, market_returns)
+    beta = cov_matrix[0, 1] / cov_matrix[1, 1]  # Cov(portfolio, market) / Var(market)
+    return beta
+
+
 def calculate_performance_metrics(data, portfolio_col, benchmark_col, risk_free_rate=0.02):
     # Cumulative returns
     portfolio_cumulative_return = (data[portfolio_col].iloc[-1] / data[portfolio_col].iloc[0]) - 1
@@ -70,13 +79,18 @@ def calculate_performance_metrics(data, portfolio_col, benchmark_col, risk_free_
     portfolio_drawdown = data[portfolio_col].div(data[portfolio_col].cummax()).min() - 1
     benchmark_drawdown = data[benchmark_col].div(data[benchmark_col].cummax()).min() - 1
 
+    # Beta
+    beta = calculate_beta(data["Portfolio_Returns"], data["SPY_return_1week"])
+
     return {
         "Cumulative Return": [portfolio_cumulative_return, benchmark_cumulative_return],
         "Annualized Return": [portfolio_annualized_return, benchmark_annualized_return],
         "Volatility": [portfolio_volatility, benchmark_volatility],
         "Sharpe Ratio": [portfolio_sharpe, benchmark_sharpe],
         "Max Drawdown": [portfolio_drawdown, benchmark_drawdown],
+        "Beta": [beta, "1.00"],  # Beta only applies to the portfolio
     }
+
 
 def main():
     st.title("📈 Backtesting & Trading Strategies")
@@ -89,6 +103,7 @@ def main():
     strategy = st.sidebar.selectbox("Select Trading Strategy", strategies)
     num_reits = st.sidebar.slider("Number of REITs", min_value=1, max_value=4, value=2)
     investment = st.sidebar.number_input("Initial Investment ($)", min_value=1000, step=500, value=10000)
+
     # Date Range Selector
     st.sidebar.subheader("Select Date Range")
     min_date = pd.to_datetime(data["date"].min())
@@ -123,8 +138,23 @@ def main():
         metrics = calculate_performance_metrics(simulated_data, "Portfolio_Cumulative", "SPY_Cumulative")
         metrics_df = pd.DataFrame(metrics, index=["Portfolio", "S&P 500"])
 
+        # Display Performance Metrics Table
         st.subheader(f"Performance Metrics ({start_date} to {end_date})")
-        st.table(metrics_df.style.format("{:.2%}" if metrics_df.columns.name != "Sharpe Ratio" else "{:.2f}"))
+
+        # Create a formatted version of the DataFrame
+        formatted_metrics_df = metrics_df.copy()
+        for col in metrics_df.columns:
+            # Format as percentages where applicable
+            if col in ["Cumulative Return", "Annualized Return", "Volatility", "Max Drawdown"]:
+                formatted_metrics_df[col] = metrics_df[col].apply(lambda x: f"{x:.2%}")
+            elif col == "Sharpe Ratio":
+                formatted_metrics_df[col] = metrics_df[col].apply(lambda x: f"{x:.2f}")
+            elif col == "Beta":
+                formatted_metrics_df[col] = metrics_df[col].apply(
+                    lambda x: f"{x:.2f}" if isinstance(x, (int, float)) else x)
+
+        # Display the formatted table
+        st.table(formatted_metrics_df)
 
     # Download results
     st.subheader("Download Simulated Data")
