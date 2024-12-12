@@ -82,9 +82,7 @@ def main():
     st.title("📈 Backtesting & Trading Strategies")
 
     # Load data
-    # Get the absolute path of the file
-    file_path = os.path.join(os.path.dirname(__file__), "data/REIT_Predictions.csv")
-    data = load_data(file_path)
+    data = load_data("data/REIT_predictions.csv")
 
     # Sidebar options
     strategies = ["Long Best", "Short Worst", "Long/Short"]
