@@ -19,9 +19,10 @@ def simulate_strategy(data, strategy, num_reits, investment):
         returns = {reit: row[f"{reit}_pred_returns"] for reit in reits}
         sorted_reits = sorted(returns.items(), key=lambda x: x[1], reverse=(strategy == "Long Best"))
 
-        if strategy in ["Long Best", "Short Worst"]:
-            selected_reits = sorted_reits[:num_reits] if strategy == "Long Best" else sorted_reits[-num_reits:]
-            weight = {reit: 1 / num_reits for reit, _ in selected_reits}
+        if strategy == "Long Best":
+            weight = {reit: 1 / num_reits for reit, _ in sorted_reits[:num_reits]}
+        elif strategy == "Short Worst":
+            weight = {reit: -1 / num_reits for reit, _ in sorted_reits[-num_reits:]}
         else:
             longs = sorted_reits[:num_reits]
             weight = {reit: (1 / num_reits) if reit in dict(longs) else -(1 / num_reits) for reit in reits}
