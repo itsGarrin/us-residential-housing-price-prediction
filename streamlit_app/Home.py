@@ -39,7 +39,6 @@ def home_page():
             "REIT": reit,
             "MAE": mae,
             "Residual StdDev": np.std(residuals),
-            "Largest Error Date": data.loc[residuals.idxmax(), "date"],
             "Largest Error Value": residuals.max()
         })
 
