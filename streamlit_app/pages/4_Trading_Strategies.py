@@ -24,7 +24,6 @@ def simulate_strategy(data, strategy, num_reits, investment):
             weight = {reit: 1 / num_reits for reit, _ in selected_reits}
         else:
             longs = sorted_reits[:num_reits]
-            shorts = sorted_reits[-num_reits:]
             weight = {reit: (1 / num_reits) if reit in dict(longs) else -(1 / num_reits) for reit in reits}
 
         weights.append(weight)
