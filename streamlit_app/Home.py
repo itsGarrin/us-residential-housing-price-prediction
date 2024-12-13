@@ -39,6 +39,7 @@ def home_page():
             "REIT": reit,
             "MAE": mae,
             "Residual StdDev": np.std(residuals),
+
             "Largest Error Value": residuals.max()
         })
 
